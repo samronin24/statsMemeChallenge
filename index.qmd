@@ -4,225 +4,327 @@ subtitle: "Creating a Statistics Meme: Visualizing Selection Bias"
 format:
   html: default
 execute:
-  echo: true
+  echo: false
   eval: true
 ---
 
-# 🎨 Selection Bias & Missing Data Challenge - Part 2
+# Visualizing Selection Bias: A Statistics Meme
 
-::: {.callout-important}
-## 📊 Challenge Requirements
+Selection bias occurs when observed data isn't representative of the population. This visualization demonstrates how systematic missing data patterns can distort our understanding of reality.
 
-**Your Task:** Create a four-panel statistics meme demonstrating selection bias using your original image and stippled version from [Part 1](https://flyaflya.github.io/stippleChallenge/).
+## The Four-Panel Meme
 
-**Prerequisites:** Completed [Part 1](https://flyaflya.github.io/stippleChallenge/) with:
-
-1. Your original image file
-2. Your stippled image (numpy array or R matrix)
-3. Image dimensions (height and width)
-
-**Deliverables:**
-
-1. Four-panel meme (1×4 or 2×2 layout) with labels: Reality, Your Model, Selection Bias, Estimate
-2. Code (Python or R) that generates the meme
-3. GitHub Pages site named "statsMemeChallenge" with your meme and explanation
-
-**Repository Information:**
-
-- **Source/Starter File:** Available in the main repository at [https://github.com/flyaflya/statsMemeChallenge](https://github.com/flyaflya/statsMemeChallenge)
-- **Challenge Read Online:** View the challenge instructions at [https://flyaflya.github.io/statsMemeChallenge](https://flyaflya.github.io/statsMemeChallenge)
-- **Your Submission:** Fork this challenge and create your GitHub Pages site at `https://[your-username].github.io/statsMemeChallenge/`
-:::
-
-## The Problem: Visualizing Selection Bias
-
-Selection bias occurs when observed data isn't representative of the population. Your meme will show:
-
-- **Reality**: Your original image (truth)
-- **Your Model**: Your stippled image (representation)
-- **Selection Bias**: A bold letter "S" (systematic missing data pattern)
-- **Estimate**: Stippled image with "S" mask applied (biased estimate)
-
-**Key Concept:** Images are simply matrices—2D arrays where each value represents a pixel (0.0 = black, 1.0 = white). Your stippled image is a matrix with black dots (data points) on a white background. Selection bias removes some of these pixels (data points) in a systematic pattern (the "S"), creating a biased estimate. You'll use image composition tools (matplotlib in Python, imager in R) to arrange these matrices into a memorable visualization.
-
-## Exemplar
-
-![Exemplar statistics meme showing the four-panel structure: Reality (original image), Your Model (stippled version), Selection Bias (letter S), and Estimate (masked stippled image)](statistics_meme.png)
-
-**Your Goal:** Recreate this structure using **your own** original and stippled images from [Part 1](https://flyaflya.github.io/stippleChallenge/).
-
-## Why This Matters
-
-This exercise is fundamentally about **walking AI through a process** to create valuable output. You're not just coding—you're collaborating with AI to transform abstract statistical concepts into a memorable visual artifact. The meme you create will serve as a mental anchor: whenever you think about selection bias in the future, you'll ask yourself: **"Does my sample match my population of interest?"** This visualization will stick with you for the rest of your life, making it easier to recognize and address selection bias in real-world data analysis.
-
-## Getting Started: Repository Setup 🚀
-
-::: {.callout-important}
-## 📁 Repository Setup Instructions
-
-**Step 1:** Fork the starter repository:
-
-- Navigate to [https://github.com/flyaflya/statsMemeChallenge](https://github.com/flyaflya/statsMemeChallenge)
-- Fork the repository to your GitHub account (this creates `https://github.com/[your-username]/statsMemeChallenge`)
-
-**Step 2:** Clone your forked repository locally using Cursor (or VS Code)
-
-**Step 3:** Set up GitHub Pages:
-
-- Go to your repository settings (click the "Settings" tab in your GitHub repository)
-- Scroll down to the "Pages" section in the left sidebar
-- Under "Source", select "Deploy from a branch"
-- Choose "main" branch and "/ (root)" folder
-- Click "Save"
-- Your site will be available at: `https://[your-username].github.io/statsMemeChallenge/`
-- **Note:** It may take a few minutes for the site to become available after enabling Pages
-
-**Step 4:** You're ready to start! Use the `index.qmd` file as your starting point.
-:::
-
-## Implementation Guide
-
-::: {.callout-important}
-## 📝 Code Visibility in Final HTML
-
-**Important:** When you create your final `index.qmd` file, use `echo: false` for all code chunks that generate the meme. The rendered HTML should show only the meme image and your explanation, not the code. The code should still be in the `.qmd` file (so it can be rendered), but it won't be displayed in the HTML output.
-:::
-
-### Step 1: Load Your Images
-
-::: {.panel-tabset}
-
-### Python
+The meme below shows four stages of data collection and analysis:
 
 ```{python}
-#| label: load-images
-#| echo: true
-#| eval: false
+#| label: stippling-functions
+#| echo: false
+#| eval: true
+#| message: false
+#| warning: false
+
+import numpy as np
+
+def compute_importance(
+    gray_img: np.ndarray,
+    extreme_downweight: float = 0.5,
+    extreme_threshold_low: float = 0.4,
+    extreme_threshold_high: float = 0.8,
+    extreme_sigma: float = 0.1,
+    mid_tone_boost: float = 0.4,
+    mid_tone_sigma: float = 0.2,
+):
+    """
+    Importance map computation that downweights extreme tones (very dark and very light)
+    using smooth functions, while boosting mid-tones.
+    """
+    I = np.clip(gray_img, 0.0, 1.0)
+    
+    # Invert brightness: dark areas should get more dots (higher importance)
+    I_inverted = 1.0 - I
+    
+    # Create smooth downweighting mask for extreme tones
+    dark_mask = np.exp(-((I - 0.0) ** 2) / (2.0 * (extreme_sigma ** 2)))
+    dark_mask = np.where(I < extreme_threshold_low, dark_mask, 0.0)
+    if dark_mask.max() > 0:
+        dark_mask = dark_mask / dark_mask.max()
+    
+    light_mask = np.exp(-((I - 1.0) ** 2) / (2.0 * (extreme_sigma ** 2)))
+    light_mask = np.where(I > extreme_threshold_high, light_mask, 0.0)
+    if light_mask.max() > 0:
+        light_mask = light_mask / light_mask.max()
+    
+    extreme_mask = np.maximum(dark_mask, light_mask)
+    importance = I_inverted * (1.0 - extreme_downweight * extreme_mask)
+    
+    # Add smooth gradual mid-tone boost
+    mid_tone_center = 0.65
+    mid_tone_gaussian = np.exp(-((I - mid_tone_center) ** 2) / (2.0 * (mid_tone_sigma ** 2)))
+    if mid_tone_gaussian.max() > 0:
+        mid_tone_gaussian = mid_tone_gaussian / mid_tone_gaussian.max()
+    
+    importance = importance * (1.0 + mid_tone_boost * mid_tone_gaussian)
+    
+    # Normalize to [0,1]
+    m, M = importance.min(), importance.max()
+    if M > m: 
+        importance = (importance - m) / (M - m)
+    return importance
+
+
+def toroidal_gaussian_kernel(h: int, w: int, sigma: float):
+    """Create a periodic (toroidal) 2D Gaussian kernel centered at (0,0)."""
+    y = np.arange(h)
+    x = np.arange(w)
+    dy = np.minimum(y, h - y)[:, None]
+    dx = np.minimum(x, w - x)[None, :]
+    kern = np.exp(-(dx**2 + dy**2) / (2.0 * sigma**2))
+    s = kern.sum()
+    if s > 0:
+        kern /= s
+    return kern
+
+
+def void_and_cluster(
+    input_img: np.ndarray,
+    percentage: float = 0.08,
+    sigma: float = 0.9,
+    content_bias: float = 0.9,
+    importance_img: np.ndarray | None = None,
+    noise_scale_factor: float = 0.1,
+):
+    """Generate blue noise stippling pattern from input image using a modified void-and-cluster algorithm."""
+    I = np.clip(input_img, 0.0, 1.0)
+    h, w = I.shape
+
+    if importance_img is None:
+        importance = compute_importance(I)
+    else:
+        importance = np.clip(importance_img, 0.0, 1.0)
+
+    kernel = toroidal_gaussian_kernel(h, w, sigma)
+    energy_current = -importance * content_bias
+    final_stipple = np.ones_like(I)
+    samples = []
+
+    def energy_splat(y, x):
+        return np.roll(np.roll(kernel, shift=y, axis=0), shift=x, axis=1)
+
+    num_points = int(I.size * percentage)
+
+    # Choose first point near center
+    cy, cx = h // 2, w // 2
+    r = min(20, h // 10, w // 10)
+    ys = slice(max(0, cy - r), min(h, cy + r))
+    xs = slice(max(0, cx - r), min(w, cx + r))
+    region = energy_current[ys, xs]
+    flat = np.argmin(region)
+    y0 = flat // (region.shape[1]) + (cy - r)
+    x0 = flat % (region.shape[1]) + (cx - r)
+
+    energy_current = energy_current + energy_splat(y0, x0)
+    energy_current[y0, x0] = np.inf
+    samples.append((y0, x0, I[y0, x0]))
+    final_stipple[y0, x0] = 0.0
+
+    # Iteratively place remaining points
+    for i in range(1, num_points):
+        # Show progress every 5% or every 500 points, whichever is more frequent
+        if i % max(1, min(num_points // 20, 500)) == 0:
+            progress = (i / num_points) * 100
+            print(f"  Progress: {progress:.0f}% ({i}/{num_points} points)", flush=True)
+        
+        exploration = 1.0 - (i / num_points) * 0.5
+        noise = np.random.normal(0.0, noise_scale_factor * content_bias * exploration, size=energy_current.shape)
+        energy_with_noise = energy_current + noise
+
+        pos_flat = np.argmin(energy_with_noise)
+        y = pos_flat // w
+        x = pos_flat % w
+
+        energy_current = energy_current + energy_splat(y, x)
+        energy_current[y, x] = np.inf
+
+        samples.append((y, x, I[y, x]))
+        final_stipple[y, x] = 0.0
+
+    return final_stipple, np.array(samples)
+```
+
+Now let's generate the stippled image:
+
+```{python}
+#| label: generate-stipple
+#| echo: false
+#| eval: true
+#| message: true
+#| warning: false
 
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
+import sys
 
 # Load original image
-original_img = Image.open('your_image.jpg')
+print("Loading image...", flush=True)
+original_img = Image.open('sam_headshot.jpg')
 if original_img.mode != 'L':
     original_img = original_img.convert('L')
 original_array = np.array(original_img, dtype=np.float32) / 255.0
+print(f"Image loaded: {original_array.shape}", flush=True)
 
-# Load stippled image (from Part 1 - see https://flyaflya.github.io/stippleChallenge/)
-stipple_array = np.load('stippleImage.npy')
+# Resize image if needed (matching Part 1 approach)
+# Using smaller max_size for faster processing during rendering
+max_size = 400
+if original_array.shape[0] > max_size or original_array.shape[1] > max_size:
+    scale = max_size / max(original_array.shape[0], original_array.shape[1])
+    new_size = (int(original_array.shape[1] * scale), int(original_array.shape[0] * scale))
+    img_resized_pil = original_img.resize(new_size, Image.Resampling.LANCZOS)
+    if img_resized_pil.mode != 'L':
+        img_resized_pil = img_resized_pil.convert('L')
+    img_resized = np.array(img_resized_pil, dtype=np.float32) / 255.0
+    print(f"Resized image from {original_array.shape} to {img_resized.shape} for processing", flush=True)
+else:
+    img_resized = original_array.copy()
 
-print(f"Original: {original_array.shape}, Stipple: {stipple_array.shape}")
+# Ensure img_resized is 2D grayscale
+if len(img_resized.shape) > 2:
+    img_resized = img_resized[:, :, 0]
+elif len(img_resized.shape) == 2:
+    pass
+else:
+    raise ValueError(f"Unexpected image shape: {img_resized.shape}")
+
+# Compute importance map using the function from Part 1
+print("Computing importance map...", flush=True)
+importance_map = compute_importance(
+    img_resized,
+    extreme_downweight=0.5,
+    extreme_threshold_low=0.2,
+    extreme_threshold_high=0.8,
+    extreme_sigma=0.1
+)
+print("Importance map computed.", flush=True)
+
+# Generate stippling pattern
+# Using slightly lower percentage for faster rendering while maintaining quality
+percentage = 0.06
+num_points = int(img_resized.size * percentage)
+print(f"Generating blue noise stippling pattern ({num_points} points)...", flush=True)
+print("This may take 1-2 minutes. Please be patient...", flush=True)
+stipple_pattern, samples = void_and_cluster(
+    img_resized,
+    percentage=percentage,
+    sigma=0.9,
+    content_bias=0.9,
+    importance_img=importance_map,
+    noise_scale_factor=0.1,
+)
+
+print(f"✓ Generated {len(samples)} stipple points", flush=True)
+print(f"Stipple pattern shape: {stipple_pattern.shape}", flush=True)
+
+# Store as stipple_array for use in meme generation
+stipple_array = stipple_pattern.copy()
+
+# If the stippled image was resized, resize it back to match original dimensions
+height, width = original_array.shape
+if stipple_array.shape != original_array.shape:
+    stipple_array = np.array(Image.fromarray((stipple_array * 255).astype(np.uint8)).resize((width, height), Image.Resampling.LANCZOS)) / 255.0
 ```
 
-### R
+### Step 2: Create the Four-Panel Meme
 
-```{r}
-#| label: load-images-r
-#| echo: true
-#| eval: false
+Now let's create the meme using your stippled image:
 
-library(imager)
+```{python}
+#| label: create-meme
+#| echo: false
+#| eval: true
+#| fig-width: 12
+#| fig-height: 3
 
-# Load original image
-original_img <- load.image('your_image.jpg')
-if(dim(original_img)[3] == 3) {
-  original_img <- grayscale(original_img)
-}
-# Convert to matrix [h, w] and normalize
-arr <- as.array(original_img)
-original_array <- t(arr[,,1,1]) / max(arr)
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+import matplotlib.pyplot as plt
 
-# Load stippled image (from Part 1 - see https://flyaflya.github.io/stippleChallenge/)
-# Adjust based on how you saved it - could be .RData, .rds, or regenerate
-# stipple_array <- readRDS('stippleImage.rds')
+# Get image dimensions from the stippled array (generated in previous step)
+height, width = stipple_array.shape
 
-cat("Original dimensions:", dim(original_array), "\n")
+# Step 2: Create the block letter "S"
+# Create a white background image
+s_img = Image.new('L', (width, height), color=255)
+draw = ImageDraw.Draw(s_img)
+
+# Try to use a bold font, fallback to default if not available
+try:
+    # Try to find a bold font (adjust path as needed for your system)
+    font_size = int(height * 0.85)  # 85% of image height
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", font_size)
+    except:
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+        except:
+            font = ImageFont.load_default()
+except:
+    font = ImageFont.load_default()
+
+# Get text bounding box to center it
+text = "S"
+bbox = draw.textbbox((0, 0), text, font=font)
+text_width = bbox[2] - bbox[0]
+text_height = bbox[3] - bbox[1]
+
+# Center the text
+x = (width - text_width) // 2
+y = (height - text_height) // 2
+
+# Draw the "S" in black
+draw.text((x, y), text, fill=0, font=font)
+
+# Convert to numpy array (0.0 = black, 1.0 = white)
+s_array = np.array(s_img, dtype=np.float32) / 255.0
+
+# Step 3: Create the masked estimate
+# Create binary mask: where "S" is black (pixels < 0.5), that's where data is missing
+threshold = 0.5
+mask = s_array < threshold
+
+# Apply mask: where "S" is black, remove stipples (set to white)
+masked_estimate = np.where(mask, 1.0, stipple_array)
+
+# Step 4: Assemble the four-panel meme
+fig, axes = plt.subplots(1, 4, figsize=(12, 3))
+fig.patch.set_facecolor('#FFE5E5')  # Light pink background
+
+panels = [
+    (original_array, "Reality"),
+    (stipple_array, "Your Model"),
+    (s_array, "Selection Bias"),
+    (masked_estimate, "Estimate")
+]
+
+for ax, (data, label) in zip(axes, panels):
+    ax.imshow(data, cmap='gray', vmin=0, vmax=1)
+    ax.set_title(label, fontsize=14, fontweight='bold', pad=10)
+    ax.axis('off')
+
+plt.tight_layout()
+plt.subplots_adjust(wspace=0, hspace=0)
+plt.savefig('statistics_meme.png', dpi=200, bbox_inches='tight', facecolor='#FFE5E5')
+plt.show()
 ```
 
-:::
+## Understanding Selection Bias
 
-### Step 2: Create the Block Letter "S"
+**Selection bias** occurs when the data we observe differs from the population we want to study, leading to incorrect conclusions. This challenge demonstrates selection bias through a visual metaphor: just as the "S" pattern systematically removes stipples from certain regions of the image, selection bias systematically excludes certain groups or observations from our data. The importance of understanding selection bias cannot be overstated—it affects everything from medical research and public policy to business decisions and social science studies. When we fail to recognize selection bias, we risk making decisions based on incomplete or misleading information, potentially perpetuating inequalities or missing critical insights about the true nature of the phenomena we're studying.
 
-Create a matrix matching your image dimensions with a bold letter "S" rendered as black pixels on a white background.
+This visualization demonstrates how **selection bias** can distort our understanding of reality:
 
-**Hints:**
+- **Reality** shows the true, complete picture—your original image represents the full population.
+- **Your Model** represents your data collection method—the stippled version shows what you actually observe (like survey responses or experimental data).
+- **Selection Bias** shows the systematic pattern of missing data—the bold "S" represents where data is systematically excluded or unavailable.
+- **Estimate** reveals the biased result—when you only see data outside the "S" region, your estimate of reality becomes distorted.
 
-- Use image drawing libraries to render text (PIL/Pillow in Python, `magick` in R)
-- Create a white background matrix matching your image dimensions (height × width)
-- Render a bold letter "S" centered in the image (try 80-90% of image height for font size)
-- Convert the result to a matrix with values in [0, 1] range (0.0 = black, 1.0 = white)
-- The "S" should be clearly visible and fill most of the image space
-
-### Step 3: Create the Masked Estimate
-
-Your stippled image is a matrix where black dots (0.0) represent data points and white (1.0) is background. The "S" matrix shows where selection bias occurs (black "S" = missing data). To create the masked estimate, remove stipple points (set to white) wherever the "S" is black.
-
-**Hints:**
-
-- Create a binary mask by thresholding the "S" image (e.g., pixels < 0.5 are part of the "S")
-- Apply the mask to your stippled image: where the "S" is black, set those pixels to white (1.0)
-- Where the "S" is white, keep the original stipple values
-- This creates the visual effect of "missing data" in the shape of the "S"
-- Use conditional assignment or boolean masking (e.g., `np.where()` in Python, `ifelse()` in R)
-
-### Step 4: Assemble the Four-Panel Meme
-
-Use the image composition capabilities of matplotlib (Python) or imager (R) to arrange your four matrices as panels in a single figure.
-
-**Hints:**
-
-- Create a multi-panel layout (1×4 for horizontal, 2×2 for grid)
-- Display each matrix as a grayscale image: original, stippled, "S", and masked stippled
-- Add clear labels: "Reality", "Your Model", "Selection Bias", "Estimate"
-- Use minimal spacing between panels for a clean, professional look
-- Consider a light background color (like pink) to make panels stand out
-- Save with high DPI (150-300) for quality output
-- In Python: use `plt.subplots()` and `imshow()` for each panel
-- In R: use `par(mfrow = ...)` and `plot()` with imager's `as.cimg()` to convert matrices
-
-## Tips for Success
-
-1. **Font Selection**: Use bold fonts (Arial Bold, DejaVu Sans Bold) for the "S"
-2. **Threshold Tuning**: Adjust `threshold` (typically 0.5) for clean mask edges
-3. **Spacing**: Minimize gaps between panels (`wspace=0`, `hspace=0`)
-4. **Background**: Light pink background helps panels stand out
-5. **Save Quality**: Use DPI 150-300 for crisp output
-6. **Layout Choice**: 1×4 for wide images, 2×2 for square/tall images
-
-## Submission Requirements
-
-**Important:** Your final GitHub Pages site should be a clean, professional presentation that focuses on the meme and explanation, not the code.
-
-**Repository Contents:**
-
-- [ ] `index.qmd` file with your code to generate the meme
-- [ ] Any supporting code files (Python `.py` files or R scripts) that your `index.qmd` references
-- [ ] Your original image and stippled image files (or `.npy`/`.rds` files) needed to generate the meme
-- [ ] Rendered HTML output (generated by rendering the `index.qmd` file)
-
-**HTML Output Requirements:**
-
-- [ ] **Code should NOT be visible** in the rendered HTML (use `echo: false` for code chunks that generate the meme)
-- [ ] The HTML should display **only the four-panel meme image**
-- [ ] Include a **brief explanation** of selection bias and how your meme demonstrates it
-- [ ] Professional, clean presentation suitable for sharing
-
-**Submission Checklist:**
-
-- [ ] All four panels: Reality, Your Model, Selection Bias, Estimate
-- [ ] Clear labels on each panel
-- [ ] Bold, properly-sized "S" letter
-- [ ] Masked estimate correctly removes stipples within "S"
-- [ ] Clean layout with minimal spacing
-- [ ] Code runs without errors and generates the meme
-- [ ] `index.qmd` file in repository with `echo: false` for meme generation code
-- [ ] Supporting code files (if any) included in repository
-- [ ] Document rendered to HTML successfully (meme generated, code hidden)
-- [ ] HTML files uploaded to your repository
-- [ ] GitHub Pages enabled and working
-- [ ] Site accessible at `https://[your-username].github.io/statsMemeChallenge/`
-- [ ] Final site shows only the meme and explanation (no visible code)
-- [ ] Brief explanation of selection bias included in HTML
-
-**Remember:** Create a memorable, educational visualization that helps others understand selection bias. This is about more than completing an assignment—it's about building a lasting understanding through creative collaboration with AI.
+This meme illustrates a fundamental question in statistics: **"Does my sample match my population of interest?"** When selection bias occurs (represented by the "S"), the answer is no—your sample systematically excludes certain parts of the population, leading to biased estimates.
